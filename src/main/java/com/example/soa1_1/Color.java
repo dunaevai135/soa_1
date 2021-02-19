@@ -1,6 +1,6 @@
 package com.example.soa1_1;
 
-public enum Color {
+public enum Color  {
     GREEN,
     YELLOW,
     ORANGE,
