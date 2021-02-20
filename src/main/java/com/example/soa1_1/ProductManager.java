@@ -15,11 +15,18 @@ public class ProductManager {
     static final ArrayList<String> REAL_COORDINATE_FIELDS = new ArrayList<>(Arrays.asList("x", "y"));
     static final ArrayList<String> REAL_OWNER_FIELDS = new ArrayList<>(Arrays.asList("eyeColor", "hairColor", "nationality", "location_id"));
     static final Map<String, String> CLIENT_OWNER_FIELDS = new HashMap<String, String>() {{
-        put("owner_x", "x");
-        put("owner_y", "y");
+        put("owner_x", "location_x");
+        put("owner_y", "location_y");
+        put("location_name", "location_name");
         put("owner_name", "name");
     }};
-    static final ArrayList<String> REAL_LOCATION_FIELDS = new ArrayList<>(Arrays.asList("x", "y", "name"));
+//    static final ArrayList<String> REAL_LOCATION_FIELDS = new ArrayList<>(Arrays.asList("x", "y", "name"));
+
+    static final Map<String, String> CLIENT_LOCATION_FIELDS = new HashMap<String, String>() {{
+        put("location_x", "x");
+        put("location_y", "y");
+        put("location_name", "name");
+    }};
 
     public static Product makeProductFromParams(Map<String, String[]> parameters)
             throws ParseException, NumberFormatException {
@@ -29,19 +36,32 @@ public class ProductManager {
         double y = Double.parseDouble(parameters.get("y")[0]);
         Coordinate cord = new Coordinate(x, y);
         Product p1 = new Product(name, creationDate);
-        Person ow;
-        if (parameters.get("owner_name") != null && parameters.get("hairColor") != null
-                && parameters.get("nationality") != null && parameters.get("location") != null) {
-            ow = new Person();
+        Person ow = new Person();
+        p1.saveIt();
+
+        final boolean[] makeParent = {false};
+        for (String field: REAL_OWNER_FIELDS) {
+            if(parameters.get(field) != null)
+                makeParent[0] = true;
+        }
+
+        CLIENT_OWNER_FIELDS.forEach((k, v) -> {
+            if(parameters.get(k) != null)
+                makeParent[0] = true;
+        });
+
+        if (makeParent[0]) {
+//            ow = ;
             ow.saveIt();
             ow.add(p1);
         }
 
-        p1.saveIt();
+
         cord.saveIt();
         cord.add(p1);
-        updateProduct(p1, parameters);
-        return p1;
+        Product np = (Product) Product.where("id = ?", p1.getId()).include(Person.class, Coordinate.class).orderBy("id").get(0);
+        updateProduct(np, parameters);
+        return np;
     }
     /*
     public static Product makeProductFromParams(Map<String, String[]> parameters)
@@ -89,6 +109,10 @@ public class ProductManager {
         int limit = parameters.get("pageSize") == null ? 100 : Integer.parseInt(parameters.get("pageSize")[0]);
         int offset = parameters.get("pageNumber") == null ? 0 : Integer.parseInt(parameters.get("pageNumber")[0])*limit;
         String orderBy = parameters.get("sortFields") == null ? "id" : parameters.get("sortFields")[0];
+        String str[] = orderBy.split(",");
+//        TODO check orderBy, make x -> owner.x
+//        return null
+//        ? location name
         return Product.findAll().include(Person.class, Coordinate.class).limit(limit).offset(offset).orderBy(orderBy);
     }
 
@@ -137,6 +161,8 @@ public class ProductManager {
 
         product.saveIt();
         product.parent(Coordinate.class).saveIt();
+        product.parent(Person.class).saveIt();
+
 //        product.parent(Person.class).saveIt();
 
 //        if(parameters.get("x") != null)
@@ -174,7 +200,7 @@ public class ProductManager {
     }
 
     public static LazyList<Product> getWorkersWithPrefix(String prefix) {
-        LazyList<Product> products = Product.where("manufactureCost LIKE ?", prefix).include(Person.class, Coordinate.class).orderBy("id");
+        LazyList<Product> products = Product.where("name LIKE ?", prefix + "%").include(Person.class, Coordinate.class).orderBy("id");
         return products.size() == 0? null : products;
     }
 }

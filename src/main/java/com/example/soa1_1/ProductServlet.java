@@ -114,23 +114,27 @@ public class ProductServlet extends MyServlet {
             LazyList<Product> products = ProductManager.getAllWorkers(request.getParameterMap());
             int sum = 0;
             for (Product i : products)
-                sum = sum + Convert.toInteger(i.get("price"));
+                if (i.get("price") != null)
+                    sum = sum + Convert.toInteger(i.get("price"));
 
             out.println(ProductManager.toXml(Collections.singleton(sum)));
         } else if (path.equals(SERVLET_PATH_AVG_MANUFACTURE_COST)) {
             LazyList<Product> products = ProductManager.getAllWorkers(request.getParameterMap());
-            int sum = 0;
+            double sum = 0;
             for (Product i : products)
-                sum = sum + Convert.toInteger(i.get("manufactureCost"));
+                if(i.get("manufactureCost") != null)
+                    sum = sum + Convert.toDouble(i.get("manufactureCost"));
 
             out.println(ProductManager.toXml(Collections.singleton(sum/products.size())));
-        } else if (path.equals(SERVLET_PATH_NAME_STARTS)) {
-            String prefix = path.substring(1);
+        } else if (checkUrlOnPrefixForNameStarts(path)) {
+            String prefix = path.substring(1 + SERVLET_PATH_NAME_STARTS.length());
+//            String prefix = request.getParameterMap().get("prefix") == null ? "" : request.getParameterMap().get("prefix")[0];
             LazyList<Product> products = ProductManager.getWorkersWithPrefix(prefix);
+//            System.out.println(products.get(0));
             if (products == null) {
                 response.sendError(404); // no content
             } else {
-                out.println(ProductManager.toXml(products));
+                out.println(ProductManager.toXml(products.toMaps()));
             }
         } else {
             response.sendError(400); // bad request
@@ -146,7 +150,9 @@ public class ProductServlet extends MyServlet {
         Base.open();
         if (path.equals(SERVLET_PATH_PRODUCT)) {
             LazyList<Product> products = ProductManager.getAllWorkers(request.getParameterMap());
-            if (products.isEmpty()) {
+            if (products == null) {
+                response.sendError(400); // bad request
+            } else if (products.isEmpty()) {
                 response.sendError(404);
             } else {
                 out.println(ProductManager.toXml(products.toMaps()));
@@ -207,6 +213,12 @@ public class ProductServlet extends MyServlet {
         return m.matches();
     }
 
+    private static boolean checkUrlOnPrefixForNameStarts(String url){
+        Pattern p = Pattern.compile("^" + SERVLET_PATH_NAME_STARTS + "/.*$");
+        Matcher m = p.matcher(url);
+        return m.matches();
+    }
+
     private static boolean validatePostPutFields(Map<String, String[]> params){
 //        return true;
         try {
@@ -218,17 +230,18 @@ public class ProductServlet extends MyServlet {
             UnitOfMeasure unitOfMeasure = (params.get("unitOfMeasure") == null) ? null : UnitOfMeasure.valueOf(params.get("unitOfMeasure")[0]);
 
             boolean res = name != null;
-            res = res && !name.equals("") && (price == null || price > 0);
-            if (params.get("owner_name") != null && params.get("hairColor") != null
-                    && params.get("nationality") != null && params.get("location") != null) {
-                String owner_name = params.get("owner_name")[0];
-                String eyeColorString = (params.get("eyeColor") == null) ? null : params.get("eyeColor")[0];
-                Color eyeColor = (eyeColorString == null) ? null : Color.valueOf(eyeColorString);
-                Color hairColor = params.get("hairColor") == null ? null : Color.valueOf(params.get("hairColor")[0]);
-                Country nationality = params.get("nationality") == null ? null : Country.valueOf(params.get("nationality")[0]);
 
-                res = res && !owner_name.equals("");
-            }
+            res = res && !name.equals("") && (price == null || price > 0);
+            String owner_name = params.get("owner_name") == null ? "" : params.get("owner_name")[0];
+            String eyeColorString = (params.get("eyeColor") == null) ? null : params.get("eyeColor")[0];
+            Color eyeColor = (eyeColorString == null) ? null : Color.valueOf(eyeColorString);
+            Color hairColor = params.get("hairColor") == null ? null : Color.valueOf(params.get("hairColor")[0]);
+            Country nationality = params.get("nationality") == null ? null : Country.valueOf(params.get("nationality")[0]);
+            res = res && !owner_name.equals("");
+
+            Long loc_x = (params.get("owner_x") == null) ? null : Long.parseLong(params.get("owner_x")[0]);
+            Double loc_y = (params.get("owner_y") == null) ? null : Double.parseDouble(params.get("owner_y")[0]);
+
             return res;
         } catch (Exception e) {
             return false;
