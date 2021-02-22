@@ -33,7 +33,7 @@ public class ProductServlet extends MyServlet {
     private static final String SERVLET_PATH_NAME_STARTS = "/name_starts";
 
     static final ArrayList<String> PRODUCT_FIELDS = new ArrayList<>(Arrays.asList("name", "x", "y", "price", "manufactureCost", "unitOfMeasure",
-            "owner_x", "owner_y", "owner_name", "eyeColor", "hairColor", "nationality"));
+            "owner_x", "owner_y", "location_name", "creationDate", "owner_name", "eyeColor", "hairColor", "nationality"));
     static final ArrayList<String> PRODUCT_FIELDS_REQUIRED = new ArrayList<>(Arrays.asList("name", "x", "y", "price"));
     static final ArrayList<String> PRODUCT_FIELDS_WITH_ID_AND_CREATION_DATE =
             new ArrayList<>(Arrays.asList("id", "name", "x", "y", "creationDate"));
@@ -222,7 +222,8 @@ public class ProductServlet extends MyServlet {
     private static boolean validatePostPutFields(Map<String, String[]> params){
 //        return true;
         try {
-            String name = params.get("name")[0];
+            String validName = "1";
+            String name = params.get("name") == null ? validName : params.get("name")[0];
             Double x = (params.get("x") == null) ? null : Double.parseDouble(params.get("x")[0]);
             Double y = (params.get("y") == null) ? null : Double.parseDouble(params.get("y")[0]);
 
@@ -231,8 +232,9 @@ public class ProductServlet extends MyServlet {
 
             boolean res = name != null;
 
+
             res = res && !name.equals("") && (price == null || price > 0);
-            String owner_name = params.get("owner_name") == null ? "" : params.get("owner_name")[0];
+            String owner_name = params.get("owner_name") == null ? validName : params.get("owner_name")[0];
             String eyeColorString = (params.get("eyeColor") == null) ? null : params.get("eyeColor")[0];
             Color eyeColor = (eyeColorString == null) ? null : Color.valueOf(eyeColorString);
             Color hairColor = params.get("hairColor") == null ? null : Color.valueOf(params.get("hairColor")[0]);
@@ -241,6 +243,8 @@ public class ProductServlet extends MyServlet {
 
             Long loc_x = (params.get("owner_x") == null) ? null : Long.parseLong(params.get("owner_x")[0]);
             Double loc_y = (params.get("owner_y") == null) ? null : Double.parseDouble(params.get("owner_y")[0]);
+
+
 
             return res;
         } catch (Exception e) {

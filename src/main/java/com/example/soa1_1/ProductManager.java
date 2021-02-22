@@ -8,6 +8,8 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class ProductManager {
     static final ArrayList<String> REAL_PRODUCT_FIELDS = new ArrayList<>(Arrays.asList("name", "price", "manufactureCost", "unitOfMeasure",
@@ -18,15 +20,15 @@ public class ProductManager {
         put("owner_x", "location_x");
         put("owner_y", "location_y");
         put("location_name", "location_name");
-        put("owner_name", "name");
+        put("owner_name", "owner_name");
     }};
 //    static final ArrayList<String> REAL_LOCATION_FIELDS = new ArrayList<>(Arrays.asList("x", "y", "name"));
 
-    static final Map<String, String> CLIENT_LOCATION_FIELDS = new HashMap<String, String>() {{
-        put("location_x", "x");
-        put("location_y", "y");
-        put("location_name", "name");
-    }};
+//    static final Map<String, String> CLIENT_LOCATION_FIELDS = new HashMap<String, String>() {{
+//        put("location_x", "x");
+//        put("location_y", "y");
+//        put("location_name", "name");
+//    }};
 
     public static Product makeProductFromParams(Map<String, String[]> parameters)
             throws ParseException, NumberFormatException {
@@ -51,7 +53,6 @@ public class ProductManager {
         });
 
         if (makeParent[0]) {
-//            ow = ;
             ow.saveIt();
             ow.add(p1);
         }
@@ -109,11 +110,40 @@ public class ProductManager {
         int limit = parameters.get("pageSize") == null ? 100 : Integer.parseInt(parameters.get("pageSize")[0]);
         int offset = parameters.get("pageNumber") == null ? 0 : Integer.parseInt(parameters.get("pageNumber")[0])*limit;
         String orderBy = parameters.get("sortFields") == null ? "id" : parameters.get("sortFields")[0];
-        String str[] = orderBy.split(",");
-//        TODO check orderBy, make x -> owner.x
-//        return null
-//        ? location name
-        return Product.findAll().include(Person.class, Coordinate.class).limit(limit).offset(offset).orderBy(orderBy);
+        List<String> orderList = Arrays.asList(orderBy.split(","));
+//        String filterStr = parameters.get("filters") == null ? "" : parameters.get("filters")[0];
+//        List<String> whereList = Arrays.asList(filterStr.split(","));
+//        TODO filter -> where
+//        name=A,prise=3
+
+        if (!(orderList.size() == 1 && orderList.get(0).equals("id"))) {
+            for (String field : REAL_PRODUCT_FIELDS) {
+                if (!orderList.contains(field))
+                    return null;
+            }
+        }
+
+        StringBuilder whereStr = new StringBuilder();
+        boolean flag = false;
+        for (Map.Entry<String, String[]> entry : parameters.entrySet()) {
+            if (REAL_PRODUCT_FIELDS.contains(entry.getKey())) {
+                if (flag) {
+                    whereStr.append(" and ");
+                }
+                flag = true;
+                whereStr.append(entry.getKey()).append(" = '").append(entry.getValue()[0]).append("'");
+                if(entry.getValue()[0].contains("'")) {
+                    return null;
+                }
+            }
+        }
+        LazyList<Product> p;
+        if (whereStr.length() != 0){
+            p = Product.where(String.valueOf(whereStr)).include(Person.class, Coordinate.class).limit(limit).offset(offset);
+        } else {
+            p = Product.findAll().include(Person.class, Coordinate.class).limit(limit).offset(offset);
+        }
+        return p.orderBy(orderBy);
     }
 
     public static Product getWorkerById(long id) {
@@ -161,7 +191,9 @@ public class ProductManager {
 
         product.saveIt();
         product.parent(Coordinate.class).saveIt();
-        product.parent(Person.class).saveIt();
+        if (product.get("owner") != null) {
+            product.parent(Person.class).saveIt();
+        }
 
 //        product.parent(Person.class).saveIt();
 
