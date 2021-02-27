@@ -24,9 +24,6 @@ import java.util.regex.Pattern;
 @WebServlet("/product/*")
 public class ProductServlet extends MyServlet {
     private static final String SERVLET_PATH_PRODUCT = "/";
-//    private static final String SERVLET_PATH_LESS_MANUFACTURE_COST = "/less_manufacture_cost";
-//    private static final String SERVLET_PATH_GREATER_MANUFACTURE_COST = "/greater_manufacture_cost";
-//    private static final String SERVLET_PATH_GREATER_PRICE = "/greater_price";
 
     private static final String SERVLET_PATH_SUM_PRICE = "/sum_price";
     private static final String SERVLET_PATH_AVG_MANUFACTURE_COST = "/avg_manufacture_cost";
@@ -94,10 +91,6 @@ public class ProductServlet extends MyServlet {
                 System.out.println(e.getMessage());
                 response.sendError(422, e.getMessage());
             }
-//            catch (Exception e) {
-//                System.out.println(e.getMessage());
-//                response.sendError(500, e.getMessage());
-//            }
         } else {
             response.sendError(400);
         }
@@ -128,9 +121,7 @@ public class ProductServlet extends MyServlet {
             out.println(ProductManager.toXml(Collections.singleton(sum/products.size())));
         } else if (checkUrlOnPrefixForNameStarts(path)) {
             String prefix = path.substring(1 + SERVLET_PATH_NAME_STARTS.length());
-//            String prefix = request.getParameterMap().get("prefix") == null ? "" : request.getParameterMap().get("prefix")[0];
             LazyList<Product> products = ProductManager.getWorkersWithPrefix(prefix);
-//            System.out.println(products.get(0));
             if (products == null) {
                 response.sendError(404); // no content
             } else {
@@ -146,6 +137,7 @@ public class ProductServlet extends MyServlet {
         response.setContentType("text/xml;charset=UTF-8");
         PrintWriter out = response.getWriter();
         String path = getPath(request);
+        System.setProperty("os.name", "Linux");
         DBConfiguration.loadConfiguration("/database.properties");
         Base.open();
         if (path.equals(SERVLET_PATH_PRODUCT)) {

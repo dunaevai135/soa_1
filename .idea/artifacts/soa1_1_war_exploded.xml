@@ -27,6 +27,8 @@
           <element id="library" level="project" name="Maven: org.javalite:app-config:2.4-j8" />
           <element id="library" level="project" name="Maven: org.xerial:sqlite-jdbc:3.32.3.2" />
           <element id="library" level="project" name="Maven: com.github.javadev:underscore:1.61" />
+          <element id="library" level="project" name="Maven: org.postgresql:postgresql:42.2.18" />
+          <element id="library" level="project" name="Maven: org.checkerframework:checker-qual:3.5.0" />
         </element>
       </element>
       <element id="directory" name="META-INF">

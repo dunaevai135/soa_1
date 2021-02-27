@@ -9,6 +9,4 @@ public class Coordinate extends Model {
 
     public Coordinate() {
     }
-//    private int x;
-//    private double y; //Значение поля должно быть больше -575
 }
