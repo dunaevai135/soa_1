@@ -5,6 +5,7 @@ import org.javalite.activejdbc.Base;
 import org.javalite.activejdbc.LazyList;
 import org.javalite.activejdbc.connection_config.DBConfiguration;
 import org.javalite.common.Convert;
+import org.xml.sax.SAXParseException;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -20,6 +21,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @WebServlet("/product/*")
 public class ProductServlet extends MyServlet {
@@ -50,20 +52,25 @@ public class ProductServlet extends MyServlet {
             try {
                 long id = Long.parseLong(path.substring(1));
                 Product product = ProductManager.getWorkerById(id);
+                String body = request.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
+                Map<String, String[]> params = ProductManager.paramsFromXml(body);
                 if (product == null) {
                     response.sendError(404); // no content
                 } else {
-                    if (hasRedundantParameters(request.getParameterMap().keySet()) ||
-                            !validatePostPutFields(request.getParameterMap())) {
+                    if (hasRedundantParameters(params.keySet()) ||
+                            !validatePostPutFields(params)) {
                         response.sendError(422);
                     } else {
-                        ProductManager.updateProduct(product, request.getParameterMap());
+                        ProductManager.updateProduct(product, params);
                         out.println(ProductManager.toXml(product));
                     }
             }
             } catch (ParseException e) {
                 System.out.println(e.getMessage());
                 response.sendError(422, e.getMessage());
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
+                response.sendError(424, e.getMessage());
             }
         } else {
             response.sendError(400); // bad request
@@ -76,24 +83,24 @@ public class ProductServlet extends MyServlet {
         PrintWriter out = response.getWriter();
         DBConfiguration.loadConfiguration("/database.properties");
         Base.open();
-        if (path.equals(SERVLET_PATH_PRODUCT)) {
-            response.setContentType("text/xml;charset=UTF-8");
-            try {
-                if (hasRedundantParameters(request.getParameterMap().keySet()) ||
-                        !hasAllRequiredParameters(request.getParameterMap().keySet()) ||
-                        !validatePostPutFields(request.getParameterMap())) {
-                    response.sendError(422);
-                } else {
-                    Product product = ProductManager.makeProductFromParams(request.getParameterMap());
-                    out.println(ProductManager.toXml(product));
-                }
-            } catch (NumberFormatException | ParseException e) {
-                System.out.println(e.getMessage());
-                response.sendError(422, e.getMessage());
-            }
-        } else {
-            response.sendError(400);
-        }
+//        if (path.equals(SERVLET_PATH_PRODUCT)) {
+//            response.setContentType("text/xml;charset=UTF-8");
+//            try {
+//                if (hasRedundantParameters(request.getParameterMap().keySet()) ||
+//                        !hasAllRequiredParameters(request.getParameterMap().keySet()) ||
+//                        !validatePostPutFields(request.getParameterMap())) {
+//                    response.sendError(422);
+//                } else {
+//                    Product product = ProductManager.makeProductFromParams(request.getParameterMap());
+//                    out.println(ProductManager.toXml(product));
+//                }
+//            } catch (NumberFormatException | ParseException e) {
+//                System.out.println(e.getMessage());
+//                response.sendError(422, e.getMessage());
+//            }
+//        } else {
+            response.sendError(405);
+//        }
         Base.close();
     }
 
@@ -127,6 +134,28 @@ public class ProductServlet extends MyServlet {
             } else {
                 out.println(ProductManager.toXml(products.toMaps()));
             }
+
+        } else if (path.equals("/")) { // CREATE
+            response.setContentType("text/xml;charset=UTF-8");
+            try {
+                String body = request.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
+                Map<String, String[]> params = ProductManager.paramsFromXml(body);
+//                System.out.println(ProductManager.paramsFromXml(body));
+                if (hasRedundantParameters(params.keySet()) ||
+                        !hasAllRequiredParameters(params.keySet()) ||
+                        !validatePostPutFields(params)) {
+                    response.sendError(422);
+                } else {
+                    Product product = ProductManager.makeProductFromParams(params);
+                    out.println(ProductManager.toXml(product));
+                }
+            } catch (NumberFormatException | ParseException e) {
+                System.out.println(e.getMessage());
+                response.sendError(422, e.getMessage());
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
+                response.sendError(424, e.getMessage());
+            }
         } else {
             response.sendError(400); // bad request
         }
@@ -144,8 +173,6 @@ public class ProductServlet extends MyServlet {
             LazyList<Product> products = ProductManager.getAllWorkers(request.getParameterMap());
             if (products == null) {
                 response.sendError(400); // bad request
-            } else if (products.isEmpty()) {
-                response.sendError(404);
             } else {
                 out.println(ProductManager.toXml(products.toMaps()));
             }
@@ -220,7 +247,8 @@ public class ProductServlet extends MyServlet {
             Double y = (params.get("y") == null) ? null : Double.parseDouble(params.get("y")[0]);
 
             Long price = (params.get("price") == null) ? null : Long.parseLong(params.get("price")[0]);
-            UnitOfMeasure unitOfMeasure = (params.get("unitOfMeasure") == null) ? null : UnitOfMeasure.valueOf(params.get("unitOfMeasure")[0]);
+
+            UnitOfMeasure unitOfMeasure = (params.get("unitOfMeasure") == null) ? null : (params.get("unitOfMeasure")[0].equals(""))? null : UnitOfMeasure.valueOf(params.get("unitOfMeasure")[0]);
 
             boolean res = name != null;
 
@@ -228,9 +256,18 @@ public class ProductServlet extends MyServlet {
             res = res && !name.equals("") && (price == null || price > 0);
             String owner_name = params.get("owner_name") == null ? validName : params.get("owner_name")[0];
             String eyeColorString = (params.get("eyeColor") == null) ? null : params.get("eyeColor")[0];
-            Color eyeColor = (eyeColorString == null) ? null : Color.valueOf(eyeColorString);
-            Color hairColor = params.get("hairColor") == null ? null : Color.valueOf(params.get("hairColor")[0]);
-            Country nationality = params.get("nationality") == null ? null : Country.valueOf(params.get("nationality")[0]);
+            if (!Objects.equals(eyeColorString, "")) {
+                Color eyeColor = (eyeColorString == null) ? null : Color.valueOf(eyeColorString);
+            }
+            String hairColorString = (params.get("hairColor") == null) ? null : params.get("hairColor")[0];
+            if (!Objects.equals(hairColorString, "")) {
+                Color hairColor = hairColorString == null ? null : Color.valueOf(hairColorString);
+            }
+            String nationalityString = (params.get("nationality") == null) ? null : params.get("nationality")[0];
+            if (!Objects.equals(nationalityString, "")) {
+                Country nationality = nationalityString == null ? null : Country.valueOf(nationalityString);
+            }
+//            Country nationality = params.get("nationality") == null ? null : Country.valueOf(params.get("nationality")[0]);
             res = res && !owner_name.equals("");
 
             Long loc_x = (params.get("owner_x") == null) ? null : Long.parseLong(params.get("owner_x")[0]);

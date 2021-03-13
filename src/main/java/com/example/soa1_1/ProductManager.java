@@ -37,21 +37,21 @@ public class ProductManager {
         Person ow = new Person();
         p1.saveIt();
 
-        final boolean[] makeParent = {false};
-        for (String field: REAL_OWNER_FIELDS) {
-            if(parameters.get(field) != null)
-                makeParent[0] = true;
-        }
+//        final boolean[] makeParent = {false};
+//        for (String field: REAL_OWNER_FIELDS) {
+//            if(parameters.get(field) != null)
+//                makeParent[0] = true;
+//        }
 
-        CLIENT_OWNER_FIELDS.forEach((k, v) -> {
-            if(parameters.get(k) != null)
-                makeParent[0] = true;
-        });
-
-        if (makeParent[0]) {
+//        CLIENT_OWNER_FIELDS.forEach((k, v) -> {
+//            if(parameters.get(k) != null)
+//                makeParent[0] = true;
+//        });
+//
+//        if (makeParent[0]) {
             ow.saveIt();
             ow.add(p1);
-        }
+//        }
 
 
         cord.saveIt();
@@ -62,7 +62,7 @@ public class ProductManager {
     }
 
     public static LazyList<Product> getAllWorkers(Map<String, String[]> parameters) {
-        int limit = parameters.get("pageSize") == null ? 100 : Integer.parseInt(parameters.get("pageSize")[0]);
+        int limit = parameters.get("pageSize") == null ? 100 : Integer.parseInt(parameters.get("pageSize")[0]); // TODO TRY
         int offset = parameters.get("pageNumber") == null ? 0 : Integer.parseInt(parameters.get("pageNumber")[0])*limit;
         String orderBy = parameters.get("sortFields") == null ? "id" : parameters.get("sortFields")[0];
         List<String> orderList = Arrays.asList(orderBy.split(","));
@@ -71,21 +71,29 @@ public class ProductManager {
 //        TODO filter -> where
 //        name=A,prise=3
 
-        if (!(orderList.size() == 1 && orderList.get(0).equals("id"))) {
-            for (String field : REAL_PRODUCT_FIELDS) {
-                if (!orderList.contains(field))
-                    return null;
-            }
+        if (limit <= 0) {
+            return null;
+        }
+
+        if (offset < 0) {
+            return null;
+        }
+
+        for (String field : orderList) {
+            if (field.equals("id") || field.equals("creationDate"))
+                continue;
+            if (!REAL_PRODUCT_FIELDS.contains(field))
+                return null;
         }
 
         StringBuilder whereStr = new StringBuilder();
-        boolean flag = false;
+        boolean addAnd = false;
         for (Map.Entry<String, String[]> entry : parameters.entrySet()) {
-            if (REAL_PRODUCT_FIELDS.contains(entry.getKey())) {
-                if (flag) {
+            if (REAL_PRODUCT_FIELDS.contains(entry.getKey()) || entry.getKey().equals("creationDate")) { //TODO check
+                if (addAnd) {
                     whereStr.append(" and ");
                 }
-                flag = true;
+                addAnd = true;
                 whereStr.append(entry.getKey()).append(" = '").append(entry.getValue()[0]).append("'");
                 if(entry.getValue()[0].contains("'")) {
                     return null;
@@ -93,6 +101,7 @@ public class ProductManager {
             }
         }
         LazyList<Product> p;
+
         if (whereStr.length() != 0){
             p = Product.where(String.valueOf(whereStr)).include(Person.class, Coordinate.class).limit(limit).offset(offset);
         } else {
@@ -111,6 +120,21 @@ public class ProductManager {
     }
     public static String toXml(Product p) {
         return U.toXml(p.toMap());
+    }
+    public static Map<String, String[]> paramsFromXml(String s) {
+        Map<String, Object> m = U.fromXmlMap(s);
+        Map<String, String[]> p = new HashMap<>();
+        for (String key : m.keySet()) {
+//            System.out.println(key + " = " + m.get(key));
+//            System.out.println(m.get(key).getClass().getName());
+            if (m.get(key).getClass().getName().equals("java.util.LinkedHashMap")) {
+                p.put(key, new String[] {""});
+            }
+            else {
+                p.put(key, new String[]{(String) m.get(key)});
+            }
+        }
+        return p;
     }
 
     public static void updateProduct(Product product, Map<String, String[]> parameters) throws ParseException, NumberFormatException {
@@ -143,6 +167,6 @@ public class ProductManager {
 
     public static LazyList<Product> getWorkersWithPrefix(String prefix) {
         LazyList<Product> products = Product.where("name LIKE ?", prefix + "%").include(Person.class, Coordinate.class).orderBy("id");
-        return products.size() == 0? null : products;
+        return products;
     }
 }
