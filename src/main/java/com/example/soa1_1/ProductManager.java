@@ -62,14 +62,19 @@ public class ProductManager {
     }
 
     public static LazyList<Product> getAllWorkers(Map<String, String[]> parameters) {
-        int limit = parameters.get("pageSize") == null ? 100 : Integer.parseInt(parameters.get("pageSize")[0]); // TODO TRY
-        int offset = parameters.get("pageNumber") == null ? 0 : Integer.parseInt(parameters.get("pageNumber")[0])*limit;
-        String orderBy = parameters.get("sortFields") == null ? "id" : parameters.get("sortFields")[0];
-        List<String> orderList = Arrays.asList(orderBy.split(","));
-//        String filterStr = parameters.get("filters") == null ? "" : parameters.get("filters")[0];
-//        List<String> whereList = Arrays.asList(filterStr.split(","));
-//        TODO filter -> where
-//        name=A,prise=3
+        int limit;
+        int offset;
+        String orderBy;
+        List<String> orderList;
+        try {
+            limit = parameters.get("pageSize") == null ? 100 : Integer.parseInt(parameters.get("pageSize")[0]);
+            offset = parameters.get("pageNumber") == null ? 0 : Integer.parseInt(parameters.get("pageNumber")[0]) * limit;
+            orderBy = parameters.get("sortFields") == null ? "id" : parameters.get("sortFields")[0];
+            orderList = Arrays.asList(orderBy.split(","));
+        }
+        catch (Exception e) { // NumberFormatException
+            return null;
+        }
 
         if (limit <= 0) {
             return null;
